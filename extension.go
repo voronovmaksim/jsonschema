@@ -1,5 +1,7 @@
 package jsonschema
 
+import "context"
+
 // ExtCompiler compiles custom keyword(s) into ExtSchema.
 type ExtCompiler interface {
 	// Compile compiles the custom keywords in schema m and returns its compiled representation.
@@ -72,6 +74,7 @@ func (ctx CompilerContext) CompileRef(ref string, refPath string, applicableOnSa
 
 // ValidationContext provides additional context required in validating for extension.
 type ValidationContext struct {
+	ctx             context.Context
 	result          validationResult
 	validate        func(sch *Schema, schPath string, v interface{}, vpath string) error
 	validateInplace func(sch *Schema, schPath string) error
@@ -113,4 +116,8 @@ func (ctx ValidationContext) Error(keywordPath string, format string, a ...inter
 // in allOf can result a validationError.
 func (ValidationError) Group(parent *ValidationError, causes ...error) error {
 	return parent.add(causes...)
+}
+
+func (ctx ValidationContext) Ctx() context.Context {
+	return ctx.ctx
 }

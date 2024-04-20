@@ -2,6 +2,7 @@ package jsonschema
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"hash/maphash"
@@ -168,7 +169,15 @@ func (s *Schema) Validate(v interface{}) (err error) {
 	return s.validateValue(v, "")
 }
 
+func (s *Schema) ValidateCtx(ctx context.Context, v interface{}) (err error) {
+	return s.validateValueCtx(ctx, v, "")
+}
+
 func (s *Schema) validateValue(v interface{}, vloc string) (err error) {
+	return s.validateValueCtx(nil, v, vloc)
+}
+
+func (s *Schema) validateValueCtx(ctx context.Context, v interface{}, vloc string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
@@ -179,7 +188,7 @@ func (s *Schema) validateValue(v interface{}, vloc string) (err error) {
 			}
 		}
 	}()
-	if _, err := s.validate(nil, 0, "", v, vloc); err != nil {
+	if _, err := s.validate(ctx, nil, 0, "", v, vloc); err != nil {
 		ve := ValidationError{
 			KeywordLocation:         "",
 			AbsoluteKeywordLocation: s.Location,
@@ -192,7 +201,7 @@ func (s *Schema) validateValue(v interface{}, vloc string) (err error) {
 }
 
 // validate validates given value v with this schema.
-func (s *Schema) validate(scope []schemaRef, vscope int, spath string, v interface{}, vloc string) (result validationResult, err error) {
+func (s *Schema) validate(ctx context.Context, scope []schemaRef, vscope int, spath string, v interface{}, vloc string) (result validationResult, err error) {
 	validationError := func(keywordPath string, format string, a ...interface{}) *ValidationError {
 		return &ValidationError{
 			KeywordLocation:         keywordLocation(scope, keywordPath),
@@ -228,12 +237,12 @@ func (s *Schema) validate(scope []schemaRef, vscope int, spath string, v interfa
 		if vpath != "" {
 			vloc += "/" + vpath
 		}
-		_, err := sch.validate(scope, 0, schPath, v, vloc)
+		_, err := sch.validate(ctx, scope, 0, schPath, v, vloc)
 		return err
 	}
 
 	validateInplace := func(sch *Schema, schPath string) error {
-		vr, err := sch.validate(scope, vscope, schPath, v, vloc)
+		vr, err := sch.validate(ctx, scope, vscope, schPath, v, vloc)
 		if err == nil {
 			// update result
 			for pname := range result.unevalProps {
@@ -735,7 +744,7 @@ func (s *Schema) validate(scope []schemaRef, vscope int, spath string, v interfa
 	}
 
 	for _, ext := range s.Extensions {
-		if err := ext.Validate(ValidationContext{result, validate, validateInplace, validationError}, v); err != nil {
+		if err := ext.Validate(ValidationContext{ctx, result, validate, validateInplace, validationError}, v); err != nil {
 			errors = append(errors, err)
 		}
 	}
