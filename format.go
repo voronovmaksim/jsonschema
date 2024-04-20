@@ -565,3 +565,18 @@ func isUUID(v interface{}) bool {
 	}
 	return len(s) == 0
 }
+
+func NativeFormatToIsValueAgainstFormat(nativeFormatFunc func(interface{}) bool, nativeFormat string) IsValueAgainstFormat {
+	if nativeFormatFunc == nil {
+		return nil
+	}
+	return func(ctx ValidationContext, value interface{}, formatOptions interface{}) *ValidationError {
+		nativeResult := nativeFormatFunc(value)
+		if nativeResult {
+			return nil
+		} else {
+			return ctx.Error("format", "%v is not again format %v", value, nativeFormat)
+		}
+
+	}
+}

@@ -86,7 +86,7 @@ func Example_fromStrings() {
 func Example_userDefinedFormat() {
 	c := jsonschema.NewCompiler()
 	c.AssertFormat = true
-	c.Formats["odd-number"] = func(v interface{}) bool {
+	c.Formats["odd-number"] = jsonschema.NativeFormatToIsValueAgainstFormat(func(v interface{}) bool {
 		switch v := v.(type) {
 		case json.Number, float32, float64, int, int8, int32, int64, uint, uint8, uint32, uint64:
 			n, _ := strconv.ParseInt(fmt.Sprint(v), 10, 64)
@@ -94,7 +94,7 @@ func Example_userDefinedFormat() {
 		default:
 			return true
 		}
-	}
+	}, "odd-number")
 
 	schema := `{
 		"type": "integer",

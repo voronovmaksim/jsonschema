@@ -26,7 +26,8 @@ type Schema struct {
 
 	// type agnostic validations
 	Format           string
-	format           func(interface{}) bool
+	formatOptions    interface{}
+	format           IsValueAgainstFormat
 	Always           *bool // always pass/fail. used when booleans are used as schemas in draft-07.
 	Ref              *Schema
 	RecursiveAnchor  bool
@@ -312,12 +313,16 @@ func (s *Schema) validate(ctx context.Context, scope []schemaRef, vscope int, sp
 		}
 	}
 
-	if s.format != nil && !s.format(v) {
-		var val = v
-		if v, ok := v.(string); ok {
-			val = quote(v)
+	if s.format != nil {
+		err := s.format(ValidationContext{ctx, result, validate, validateInplace, validationError}, v, s.formatOptions)
+		if err != nil {
+			var val = v
+			if v, ok := v.(string); ok {
+				val = quote(v)
+			}
+			validationError := validationError("format", "%v is not valid %s. Root cause: %s", val, quote(s.Format), err.Message)
+			errors = append(errors, validationError)
 		}
-		errors = append(errors, validationError("format", "%v is not valid %s", val, quote(s.Format)))
 	}
 
 	switch v := v.(type) {

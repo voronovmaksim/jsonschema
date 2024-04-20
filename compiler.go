@@ -32,7 +32,7 @@ type Compiler struct {
 
 	// Formats can be registered by adding to this map. Key is format name,
 	// value is function that knows how to validate that format.
-	Formats map[string]func(interface{}) bool
+	Formats map[string]IsValueAgainstFormat
 
 	// AssertFormat for specifications >= draft2019-09.
 	AssertFormat bool
@@ -48,6 +48,8 @@ type Compiler struct {
 	// AssertContent for specifications >= draft2019-09.
 	AssertContent bool
 }
+
+type IsValueAgainstFormat = func(ctx ValidationContext, value interface{}, formatOptions interface{}) *ValidationError
 
 // Compile parses json-schema at given url returns, if successful,
 // a Schema object that can be used to match against json.
@@ -89,7 +91,7 @@ func NewCompiler() *Compiler {
 	return &Compiler{
 		Draft:      latest,
 		resources:  make(map[string]*resource),
-		Formats:    make(map[string]func(interface{}) bool),
+		Formats:    make(map[string]IsValueAgainstFormat),
 		Decoders:   make(map[string]func(string) ([]byte, error)),
 		MediaTypes: make(map[string]func([]byte) error),
 		extensions: make(map[string]extension),
@@ -662,12 +664,15 @@ func (c *Compiler) compileMap(r *resource, stack []schemaRef, sref schemaRef, re
 	}
 
 	if format, ok := m["format"]; ok {
+		options := m["formatOptions"]
 		s.Format = format.(string)
 		if r.draft.version < 2019 || c.AssertFormat || r.schema.meta.hasVocab("format-assertion") {
 			if format, ok := c.Formats[s.Format]; ok {
 				s.format = format
+				s.formatOptions = options
 			} else {
-				s.format, _ = Formats[s.Format]
+				s.format = NativeFormatToIsValueAgainstFormat(Formats[s.Format], s.Format)
+				s.formatOptions = options
 			}
 		}
 	}
